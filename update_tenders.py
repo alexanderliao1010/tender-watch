@@ -34,28 +34,38 @@ CACHE_FILE = os.path.join(BASE, "data", "cache.json")
 OUT_FILE = os.path.join(BASE, "docs", "index.html")
 TEMPLATE_FILE = os.path.join(BASE, "template.html")
 
+CACHE_VERSION = 2
 TENDER_TYPE = re.compile(r"招標|公開取得")
 SKIP_TYPE = re.compile(r"決標|閱覽|定期彙送")
 CLOSED_TYPE = re.compile(r"決標|撤銷|停止|廢標")
 
 session = requests.Session()
-session.headers["User-Agent"] = "tender-watch/1.0 (daily github action)"
+session.headers.update({
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+                  "(KHTML, like Gecko) Chrome/129.0 Safari/537.36",
+    "Accept": "application/json, text/plain, */*",
+    "Accept-Language": "zh-TW,zh;q=0.9,en;q=0.8",
+    "Referer": "https://ronnywang.github.io/pcc-viewer/",
+    "Origin": "https://ronnywang.github.io",
+})
 _debug_printed = False
 
 
 def api(path):
-    last = None
+    errors = []
     for host in HOSTS:
-        for attempt in range(3):
+        for attempt in range(2):
             try:
                 r = session.get(host + path, timeout=30)
                 if r.status_code == 200:
                     return r.json()
-                last = f"{host} HTTP {r.status_code}"
+                errors.append(f"{host} HTTP {r.status_code}")
+                if r.status_code == 403:
+                    break           # 被擋就換下一個來源，不重試
             except Exception as e:  # 連線失敗或回傳非 JSON（例如防火牆頁）
-                last = f"{host} {e}"
+                errors.append(f"{host} {type(e).__name__}")
             time.sleep(2 * (attempt + 1))
-    raise RuntimeError(last)
+    raise RuntimeError(" / ".join(errors))
 
 
 def all_unit_keywords():
@@ -201,7 +211,11 @@ def main():
         with open(CACHE_FILE, encoding="utf-8") as f:
             cache = json.load(f)
     except FileNotFoundError:
-        cache = {"days": {}, "tenders": {}}
+        cache = {}
+    if cache.get("version") != CACHE_VERSION:   # 版本不同就整份重抓
+        cache = {"version": CACHE_VERSION, "days": {}, "tenders": {}}
+    stats = {"ok_days": 0, "fail_days": 0, "raw": 0, "matched": 0, "types": {}}
+    sample_printed = False
 
     now = dt.datetime.now(TZ)
     today = now.date()
@@ -217,10 +231,20 @@ def main():
         else:
             try:
                 raw = api(f"/api/listbydate?date={ds}")
-                recs = [slim(r) for r in raw.get("records", []) if unit_match(r.get("unit_name"))]
+                all_recs = raw.get("records", []) if isinstance(raw, dict) else []
+                if all_recs and not sample_printed:
+                    print(f"【診斷】{ds} 範例資料：", json.dumps(all_recs[0], ensure_ascii=False)[:800])
+                    sample_printed = True
+                recs = [slim(r) for r in all_recs if unit_match(r.get("unit_name"))]
                 cache["days"][ds] = recs
+                stats["ok_days"] += 1
+                stats["raw"] += len(all_recs)
+                stats["matched"] += len(recs)
+                for r in recs:
+                    stats["types"][r["type"]] = stats["types"].get(r["type"], 0) + 1
             except Exception as e:
                 print("略過", ds, e)
+                stats["fail_days"] += 1
                 recs = cache["days"].get(ds, [])
             time.sleep(0.3)
         for r in recs:
@@ -232,6 +256,10 @@ def main():
                 j["title"], j["url"] = r["title"], r["url"] or j["url"]
 
     cache["days"] = {k: v for k, v in cache["days"].items() if k in keep_days}
+    works = sum(1 for j in jobs.values() if j["works"])
+    print(f"【診斷】成功抓取 {stats['ok_days']} 天、失敗 {stats['fail_days']} 天；"
+          f"全國公告 {stats['raw']} 筆，新竹桃園機關 {stats['matched']} 筆，判定為工程招標 {works} 案")
+    print("【診斷】新竹桃園公告類型統計：", json.dumps(stats["types"], ensure_ascii=False))
 
     # 2) 只對新的或有更新（更正、決標）的案子抓明細
     fetched = 0
