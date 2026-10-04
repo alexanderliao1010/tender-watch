@@ -1,0 +1,377 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>新竹桃園招標中工程案</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#F4F6F5; --card:#FFFFFF; --ink:#1D2733; --muted:#5B6672; --line:#D4D9DC;
+  --hz:#F2B705; --hsinchu:#2C7A76; --taoyuan:#484DA0; --bar:#2C7A76;
+  color-scheme: light dark;
+}
+@media (prefers-color-scheme: dark){
+  :root{ --paper:#14191F; --card:#1B222A; --ink:#E6EAEE; --muted:#9BA5AF; --line:#2C343D;
+         --hsinchu:#62B9B3; --taoyuan:#9195E3; --bar:#62B9B3; }
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);
+  font:16px/1.6 "Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif;
+  font-variant-numeric:tabular-nums}
+.wrap{max-width:1180px;margin:0 auto;padding:28px 18px 60px}
+h1{font-size:clamp(1.5rem,4vw,2.2rem);line-height:1.25;margin:0 0 6px;font-weight:700}
+.sub{color:var(--muted);margin:0 0 18px;font-size:.95rem}
+.status{display:flex;align-items:center;gap:12px;flex-wrap:wrap;background:var(--card);
+  border:1px solid var(--line);border-radius:8px;padding:10px 14px;margin-bottom:16px;font-size:.92rem}
+.status .msg{flex:1 1 240px}
+.status.error{border-color:#C0392B}
+.progress{flex:1 1 100%;height:6px;background:var(--line);border-radius:3px;overflow:hidden}
+.progress i{display:block;height:100%;width:0;background:var(--bar);transition:width .3s}
+.controls{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:14px}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:var(--card)}
+.seg button{border:0;background:none;color:var(--ink);font:inherit;font-size:.95rem;padding:8px 16px;cursor:pointer}
+.seg button+button{border-left:1px solid var(--line)}
+.seg button[aria-pressed="true"]{background:var(--ink);color:var(--paper);font-weight:500}
+.btn{font:inherit;font-size:.9rem;padding:6px 14px;border:1px solid var(--line);border-radius:8px;
+  background:var(--paper);color:var(--ink);cursor:pointer}
+.btn:disabled{opacity:.5;cursor:default}
+input[type=search]{flex:1 1 220px;min-width:0;font:inherit;font-size:.95rem;padding:8px 12px;
+  border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--ink)}
+button:focus-visible,input:focus-visible,a:focus-visible{outline:3px solid var(--hz);outline-offset:2px}
+.count{color:var(--muted);font-size:.9rem;margin:0 0 10px}
+.head,.row{display:grid;gap:4px 18px}
+.head{display:none;color:var(--muted);font-size:.82rem;padding:0 16px 6px}
+.row{background:var(--card);border:1px solid var(--line);border-left:6px solid var(--line);
+  border-radius:6px;padding:14px 16px;margin-bottom:8px;
+  grid-template-columns:1fr auto;grid-template-areas:"name left" "budget budget" "period period" "dl dl" "open open"}
+.row.urgent{border-left-color:transparent;
+  border-image:repeating-linear-gradient(-45deg,var(--hz) 0 8px,var(--ink) 8px 16px) 0 0 0 6 / 0 0 0 6px}
+.left{grid-area:left;font-weight:700;white-space:nowrap;align-self:start}
+.urgent .left{color:#1D2733;background:var(--hz);padding:0 8px;border-radius:4px}
+.name{grid-area:name;min-width:0}
+.name a{color:var(--ink);font-weight:500;text-decoration:none}
+.name a:hover{text-decoration:underline}
+.unit{color:var(--muted);font-size:.88rem;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.tag{font-size:.78rem;font-weight:700;color:#fff;padding:0 7px;border-radius:4px}
+.tag.新竹{background:var(--hsinchu)} .tag.桃園{background:var(--taoyuan)}
+.budget{grid-area:budget}.period{grid-area:period}.dl{grid-area:dl}.open{grid-area:open}
+.cell{font-size:.92rem}
+.cell b{font-weight:400;color:var(--muted);margin-right:6px}
+.dl strong{font-weight:700}
+.empty{padding:40px 16px;text-align:center;color:var(--muted);border:1px dashed var(--line);border-radius:6px}
+footer{margin-top:28px;color:var(--muted);font-size:.82rem}
+footer a{color:inherit}
+@media (min-width:900px){
+  .head,.row{grid-template-columns:92px minmax(0,1fr) 108px 196px 150px 150px;align-items:center;
+    grid-template-areas:"left name budget period dl open"}
+  .head{display:grid}
+  .cell b{display:none}
+  .budget{text-align:right}
+}
+@media (prefers-reduced-motion: reduce){ .progress i{transition:none} }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>新竹、桃園招標中的工程案</h1>
+  <p class="sub">預算 2,800 萬以下，依截止投標時間排序。每次打開頁面自動抓取最新公告。</p>
+
+  <div class="status" id="status" role="status" aria-live="polite">
+    <span class="msg" id="msg">準備讀取資料…</span>
+    <button class="btn" id="refresh" type="button" disabled>更新資料</button>
+    <div class="progress" id="progress" hidden><i id="bar"></i></div>
+  </div>
+
+  <div class="controls">
+    <div class="seg" role="group" aria-label="地區">
+      <button type="button" data-r="" aria-pressed="true">全部</button>
+      <button type="button" data-r="新竹" aria-pressed="false">新竹</button>
+      <button type="button" data-r="桃園" aria-pressed="false">桃園</button>
+    </div>
+    <input type="search" id="q" placeholder="搜尋機關或標案名稱" aria-label="搜尋機關或標案名稱">
+  </div>
+  <p class="count" id="count"></p>
+
+  <div class="head" aria-hidden="true">
+    <span>剩餘</span><span>標案</span><span style="text-align:right">預算</span>
+    <span>招標期間</span><span>截止投標</span><span>開標</span>
+  </div>
+  <div id="list"></div>
+
+  <footer>資料來源：<a href="https://web.pcc.gov.tw">政府電子採購網</a>（經 g0v 標案資料 API）。實際內容以採購網公告為準。</footer>
+</div>
+
+<script>
+/* ===== 可調整的設定 ===== */
+const BUDGET_MAX = 28000000;      // 預算上限（不含）
+const LOOKBACK_DAYS = 40;         // 往回掃描幾天的公告
+const REFETCH_RECENT_DAYS = 3;    // 最近幾天每次重抓
+const REGION_KEYWORDS = {
+  "新竹": ["新竹","竹北","竹東","新埔","關西","湖口","新豐","芎林","橫山","北埔","寶山","峨眉","尖石","五峰","香山"],
+  "桃園": ["桃園","中壢","平鎮","八德","楊梅","蘆竹","大溪","龍潭","龜山","大園","觀音","新屋","復興"],
+};
+const EXTRA_UNIT_KEYWORDS = ["北區水資源分署","石門"];
+/* ======================= */
+
+const HOSTS = ["https://pcc-api.openfun.app","https://pcc.g0v.ronny.tw"];
+const STORE_KEY = "tender-watch-v1";
+const UNIT_KWS = [...EXTRA_UNIT_KEYWORDS, ...Object.values(REGION_KEYWORDS).flat()];
+const TENDER_TYPE = /招標|公開取得/, SKIP_TYPE = /決標|閱覽|定期彙送/, CLOSED_TYPE = /決標|撤銷|停止|廢標/;
+const WD = "日一二三四五六";
+
+let region = "", query = "", ITEMS = [], busy = false;
+const $ = id => document.getElementById(id);
+
+/* ---------- 儲存 ---------- */
+function loadStore(){
+  try { const s = JSON.parse(localStorage.getItem(STORE_KEY)); if (s && s.days && s.tenders) return s; } catch(e){}
+  return {days:{}, tenders:{}, items:[], updated:null};
+}
+function saveStore(s){
+  try { localStorage.setItem(STORE_KEY, JSON.stringify(s)); } catch(e){ console.warn("儲存失敗", e); }
+}
+
+/* ---------- 工具 ---------- */
+async function api(path){
+  const errors = [];
+  for (const host of HOSTS){
+    for (let attempt = 0; attempt < 2; attempt++){
+      try {
+        const r = await fetch(host + path);
+        if (r.ok) return await r.json();
+        errors.push(`${host} HTTP ${r.status}`);
+        if (r.status === 403) break;
+      } catch(e){ errors.push(`${host} ${e.name}`); }
+      await new Promise(res => setTimeout(res, 1500 * (attempt + 1)));
+    }
+  }
+  throw new Error(errors.join(" / "));
+}
+async function pool(tasks, limit, onDone){
+  let i = 0, done = 0;
+  async function worker(){
+    while (i < tasks.length){
+      const t = tasks[i++];
+      try { await t(); } catch(e){ console.warn(e); }
+      onDone(++done, tasks.length);
+    }
+  }
+  await Promise.all(Array.from({length: Math.min(limit, tasks.length)}, worker));
+}
+function taipeiYMD(offsetDays){
+  const d = new Date(Date.now() + 8*3600e3 - offsetDays*86400e3);
+  return `${d.getUTCFullYear()}${String(d.getUTCMonth()+1).padStart(2,"0")}${String(d.getUTCDate()).padStart(2,"0")}`;
+}
+const unitMatch = n => UNIT_KWS.some(k => (n||"").includes(k));
+function regionFromAddress(a){
+  if (/新竹[縣市]/.test(a||"")) return "新竹";
+  if (/桃園[縣市]/.test(a||"")) return "桃園";
+  return null;
+}
+function regionFromName(n){
+  for (const [r, kws] of Object.entries(REGION_KEYWORDS)) if (kws.some(k => (n||"").includes(k))) return r;
+  return null;
+}
+const briefType = r => (r.brief && r.brief.type) || r.type || "";
+const isTenderType = t => TENDER_TYPE.test(t) && !SKIP_TYPE.test(t);
+function field(d, ...names){
+  for (const exact of [true, false]){
+    for (const [k, v] of Object.entries(d||{})){
+      if (v === null || v === "" || typeof v === "object") continue;
+      const tail = k.split(":").pop().trim();
+      for (const n of names) if (exact ? tail === n : k.endsWith(n)) return String(v).trim();
+    }
+  }
+  return "";
+}
+function parseDate(s){
+  const m = /(\d{2,4})\/(\d{1,2})\/(\d{1,2})(?:\s+(\d{1,2}):(\d{2}))?/.exec(s||"");
+  if (!m) return null;
+  let y = +m[1]; if (y < 1911) y += 1911;
+  const p = n => String(n).padStart(2,"0");
+  const d = new Date(`${y}-${p(m[2])}-${p(m[3])}T${p(m[4]||0)}:${p(m[5]||0)}:00+08:00`);
+  return isNaN(d) ? null : d.toISOString();
+}
+function parseMoney(s){
+  if (!s) return null;
+  const digits = s.split("元")[0].replace(/[^\d]/g, "");
+  return digits ? +digits : null;
+}
+const absUrl = u => !u ? "" : (u.startsWith("http") ? u : "https://web.pcc.gov.tw" + u);
+function slim(r){
+  const b = r.brief || {};
+  return {date: r.date||0, type: b.type||"", category: b.category||"", title: b.title||"",
+          unit_id: r.unit_id||"", unit_name: r.unit_name||"", job_number: r.job_number||"", url: r.url||""};
+}
+
+/* ---------- 抓明細 ---------- */
+async function fetchDetail(j){
+  const data = await api(`/api/tender?unit_id=${encodeURIComponent(j.unit_id)}&job_number=${encodeURIComponent(j.job_number)}`);
+  const recs = (data.records||[]).slice().sort((a,b) => (a.date||0)-(b.date||0) || String(a.filename||"").localeCompare(String(b.filename||"")));
+  if (!recs.length) return null;
+  if (CLOSED_TYPE.test(briefType(recs[recs.length-1]))) return {closed:true};
+  const tr = recs.filter(r => isTenderType(briefType(r)));
+  if (!tr.length) return null;
+  const rec = tr[tr.length-1], d = rec.detail || {};
+  const category = field(d, "標的分類");
+  if (category && !category.includes("工程")) return {not_works:true};
+  const unit = field(d, "機關名稱") || j.unit_name;
+  let announce = parseDate(field(d, "公告日"));
+  if (!announce && rec.date){ const s = String(rec.date); announce = parseDate(`${s.slice(0,4)}/${s.slice(4,6)}/${s.slice(6,8)}`); }
+  return {
+    region: regionFromAddress(field(d, "機關地址")) || regionFromName(unit),
+    unit, title: field(d, "標案名稱") || j.title, job: j.job_number,
+    method: field(d, "招標方式"),
+    budget: parseMoney(field(d, "預算金額")),
+    announce, deadline: parseDate(field(d, "截止投標")), opening: parseDate(field(d, "開標時間")),
+    url: absUrl(rec.url || j.url),
+  };
+}
+
+/* ---------- 主流程 ---------- */
+function setStatus(text, pct, isError){
+  $("msg").textContent = text;
+  $("status").classList.toggle("error", !!isError);
+  $("progress").hidden = pct == null;
+  if (pct != null) $("bar").style.width = Math.round(pct*100) + "%";
+}
+
+async function update(){
+  if (busy) return;
+  busy = true; $("refresh").disabled = true;
+  const store = loadStore();
+  const keep = new Set(), jobs = {};
+  let okDays = 0, failDays = 0, lastErr = "";
+
+  // 1) 每日公告清單
+  const dayTasks = [];
+  for (let i = 0; i < LOOKBACK_DAYS; i++){
+    const ds = taipeiYMD(i); keep.add(ds);
+    if (i >= REFETCH_RECENT_DAYS && store.days[ds]) continue;
+    dayTasks.push(async () => {
+      try {
+        const raw = await api(`/api/listbydate?date=${ds}`);
+        store.days[ds] = (raw.records||[]).filter(r => unitMatch(r.unit_name)).map(slim);
+        okDays++;
+      } catch(e){ failDays++; lastErr = e.message; }
+    });
+  }
+  setStatus(`正在讀取公告清單 0/${dayTasks.length} 天…`, 0);
+  await pool(dayTasks, 4, (d, n) => setStatus(`正在讀取公告清單 ${d}/${n} 天…`, n ? d/n*0.5 : 0.5));
+
+  if (dayTasks.length && okDays === 0){
+    setStatus(`無法連線到資料來源（${lastErr}）。請稍後按「更新資料」再試。`, null, true);
+    busy = false; $("refresh").disabled = false;
+    return;
+  }
+
+  for (const k of Object.keys(store.days)) if (!keep.has(k)) delete store.days[k];
+  for (const recs of Object.values(store.days)){
+    for (const r of recs){
+      const key = `${r.unit_id}|${r.job_number}`;
+      const j = jobs[key] || (jobs[key] = {...r, max_date:0, works:false});
+      j.max_date = Math.max(j.max_date, r.date);
+      if (isTenderType(r.type) && (r.category.includes("工程") || !r.category)){
+        j.works = true; j.title = r.title; j.url = r.url || j.url;
+      }
+    }
+  }
+
+  // 2) 新案或有異動的案子抓明細
+  const detailTasks = [];
+  for (const [key, j] of Object.entries(jobs)){
+    if (!j.works) continue;
+    const c = store.tenders[key];
+    if (c && c.max_date >= j.max_date) continue;
+    detailTasks.push(async () => {
+      const info = await fetchDetail(j);
+      store.tenders[key] = {max_date: j.max_date, info};
+    });
+  }
+  setStatus(`正在讀取標案明細 0/${detailTasks.length} 案…`, 0.5);
+  await pool(detailTasks, 4, (d, n) => setStatus(`正在讀取標案明細 ${d}/${n} 案…`, 0.5 + (n ? d/n*0.5 : 0.5)));
+
+  // 3) 篩選
+  const now = Date.now(), items = [];
+  for (const [key, c] of Object.entries(store.tenders)){
+    const info = c.info || {};
+    const dl = info.deadline ? Date.parse(info.deadline) : null;
+    if (!jobs[key] || (dl && dl < now - 3*86400e3)){ delete store.tenders[key]; continue; }
+    if (info.closed || info.not_works || !info.region) continue;
+    if (info.budget == null || info.budget >= BUDGET_MAX) continue;
+    if (!dl || dl <= now) continue;
+    items.push(info);
+  }
+  items.sort((a,b) => a.deadline.localeCompare(b.deadline));
+  store.items = items; store.updated = new Date().toISOString();
+  saveStore(store);
+
+  ITEMS = items; render();
+  const t = new Date(store.updated);
+  setStatus(`已更新（${t.getHours()}:${String(t.getMinutes()).padStart(2,"0")}）` +
+            (failDays ? `，有 ${failDays} 天的公告暫時讀不到` : ""), null, false);
+  busy = false; $("refresh").disabled = false;
+}
+
+/* ---------- 畫面 ---------- */
+function roc(iso, withTime){
+  if (!iso) return "—";
+  const d = new Date(iso), p = n => String(n).padStart(2,"0");
+  let s = `${d.getFullYear()-1911}/${p(d.getMonth()+1)}/${p(d.getDate())}（${WD[d.getDay()]}）`;
+  if (withTime) s += ` ${p(d.getHours())}:${p(d.getMinutes())}`;
+  return s;
+}
+const wan = n => (n/10000).toLocaleString("zh-TW",{maximumFractionDigits:1}) + " 萬";
+function daysLeft(iso){
+  const ms = new Date(iso) - new Date();
+  if (ms <= 0) return null;
+  const d = Math.floor(ms/86400e3);
+  return d === 0 ? "今天截止" : `剩 ${d} 天`;
+}
+function esc(s){ const e = document.createElement("span"); e.textContent = s || ""; return e.innerHTML; }
+
+function render(){
+  const q = query.trim();
+  const rows = ITEMS.filter(t => (!region || t.region === region) &&
+    (!q || (t.title + t.unit + t.job).includes(q)) && daysLeft(t.deadline));
+  $("count").textContent = `共 ${rows.length} 案`;
+  if (!rows.length){
+    $("list").innerHTML = `<div class="empty">${busy ? "資料讀取中，請稍候。" :
+      ITEMS.length ? "沒有符合篩選的案子，換個地區或關鍵字試試。" : "目前沒有符合條件的招標案。"}</div>`;
+    return;
+  }
+  $("list").innerHTML = rows.map(t => {
+    const urgent = (new Date(t.deadline) - new Date()) < 3*86400e3;
+    const title = t.url ? `<a href="${esc(t.url)}" target="_blank" rel="noopener">${esc(t.title)}</a>` : esc(t.title);
+    return `<article class="row${urgent ? " urgent" : ""}">
+      <div class="left">${daysLeft(t.deadline)}</div>
+      <div class="name">${title}
+        <div class="unit"><span class="tag ${t.region}">${t.region}</span>${esc(t.unit)}${t.method ? `<span>${esc(t.method)}</span>` : ""}</div>
+      </div>
+      <div class="cell budget"><b>預算</b>${wan(t.budget)}</div>
+      <div class="cell period"><b>招標期間</b>${roc(t.announce)} – ${roc(t.deadline)}</div>
+      <div class="cell dl"><b>截止投標</b><strong>${roc(t.deadline, true)}</strong></div>
+      <div class="cell open"><b>開標</b>${roc(t.opening, true)}</div>
+    </article>`;
+  }).join("");
+}
+
+document.querySelectorAll(".seg button").forEach(b => b.addEventListener("click", () => {
+  region = b.dataset.r;
+  document.querySelectorAll(".seg button").forEach(x => x.setAttribute("aria-pressed", x === b));
+  render();
+}));
+$("q").addEventListener("input", e => { query = e.target.value; render(); });
+$("refresh").addEventListener("click", update);
+
+// 先顯示上次的結果，再背景更新
+const cached = loadStore();
+ITEMS = cached.items || [];
+busy = true; render(); busy = false;
+update();
+</script>
+</body>
+</html>
