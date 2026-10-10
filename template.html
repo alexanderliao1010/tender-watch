@@ -37,7 +37,7 @@ button:focus-visible,input:focus-visible,a:focus-visible{outline:3px solid var(-
 .head{display:none;color:var(--muted);font-size:.82rem;padding:0 16px 6px}
 .row{background:var(--card);border:1px solid var(--line);border-left:6px solid var(--line);
   border-radius:6px;padding:14px 16px;margin-bottom:8px;
-  grid-template-columns:1fr auto;grid-template-areas:"name left" "budget budget" "period period" "dl dl" "open open"}
+  grid-template-columns:1fr auto;grid-template-areas:"name left" "budget budget" "period period" "dl dl" "open open" "info info"}
 .row.urgent{border-left-color:transparent;
   border-image:repeating-linear-gradient(-45deg,var(--hz) 0 8px,var(--ink) 8px 16px) 0 0 0 6 / 0 0 0 6px}
 .left{grid-area:left;font-weight:700;white-space:nowrap;align-self:start}
@@ -49,6 +49,9 @@ button:focus-visible,input:focus-visible,a:focus-visible{outline:3px solid var(-
 .tag{font-size:.78rem;font-weight:700;color:#fff;padding:0 7px;border-radius:4px}
 .tag.新竹{background:var(--hsinchu)} .tag.桃園{background:var(--taoyuan)}
 .budget{grid-area:budget}.period{grid-area:period}.dl{grid-area:dl}.open{grid-area:open}
+.info{grid-area:info;display:flex;flex-wrap:wrap;gap:4px 8px;margin-top:6px}
+.info span{font-size:.85rem;background:var(--paper);border:1px solid var(--line);border-radius:4px;padding:1px 8px;max-width:100%}
+.info span b{font-weight:400;color:var(--muted);margin-right:4px}
 .cell{font-size:.92rem}
 .cell b{font-weight:400;color:var(--muted);margin-right:6px}
 .dl strong{font-weight:700}
@@ -57,7 +60,8 @@ footer{margin-top:28px;color:var(--muted);font-size:.82rem}
 footer a{color:inherit}
 @media (min-width:900px){
   .head,.row{grid-template-columns:92px minmax(0,1fr) 108px 196px 150px 150px;align-items:center;
-    grid-template-areas:"left name budget period dl open"}
+    grid-template-areas:"left name budget period dl open" ". info info info info info"}
+  .info b{display:inline !important}
   .head{display:grid}
   .cell b{display:none}
   .budget{text-align:right}
@@ -129,12 +133,17 @@ function render(){
     return `<article class="row${urgent?" urgent":""}">
       <div class="left">${left}</div>
       <div class="name">${title}
-        <div class="unit"><span class="tag ${t.region}">${t.region}</span>${esc(t.unit)}${t.method?`<span>${esc(t.method)}</span>`:""}</div>
+        <div class="unit"><span class="tag ${t.region}">${t.region}</span>${esc(t.unit)}</div>
       </div>
       <div class="cell budget"><b>預算</b>${wan(t.budget)}</div>
       <div class="cell period"><b>招標期間</b>${roc(t.announce)} – ${roc(t.deadline)}</div>
       <div class="cell dl"><b>截止投標</b><strong>${roc(t.deadline,true)}</strong></div>
       <div class="cell open"><b>開標</b>${roc(t.opening,true)}</div>
+      <div class="info">
+        <span><b>決標方式</b>${esc(t.award)||"—"}</span>
+        <span><b>履約期限</b>${esc(t.period)||"—"}</span>
+        <span><b>押標金</b>${esc(t.bond)||"—"}</span>
+      </div>
     </article>`;
   }).join("");
 }

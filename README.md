@@ -1,11 +1,18 @@
-# 新竹桃園招標中工程案（每日自動更新）
+# 新竹桃園招標中工程案
 
-## 設定步驟（約 10 分鐘，一次就好）
-1. 註冊 / 登入 GitHub，建立新的 **Public** repository（例如 `tender-watch`）。
-2. 把這個資料夾的檔案全部上傳（保留 `.github/workflows/daily.yml` 的路徑）。
-3. 到 **Actions** 分頁 → 選「每日更新招標清單」→ **Run workflow**，等 2–5 分鐘跑完。
-4. 到 **Settings → Pages**：Source 選 *Deploy from a branch*，Branch 選 `main`、資料夾選 `/docs` → Save。
-5. 網址會是 `https://你的帳號.github.io/tender-watch/`，之後每天早上 6 點自動更新。
+## 檔案說明
+| 檔案 | 用途 |
+|---|---|
+| `index.html` | 瀏覽器版網頁：打開時由瀏覽器直接抓資料（備案） |
+| `update_tenders.py` | GitHub 每天自動執行的抓資料程式 |
+| `template.html` | 自動產生網頁用的版型 |
+| `.github/workflows/daily.yml` | 每天早上 6 點自動執行的排程設定 |
+
+執行成功後會自動產生 `docs/`（秒開版網頁）和 `data/`（快取）兩個資料夾。
+
+## 網頁來源設定（Settings → Pages）
+- GitHub 自動抓取成功 → 選 `main` + `/docs`（秒開版）
+- GitHub 被擋（HTTP 403） → 選 `main` + `/ (root)`（瀏覽器版）
 
 ## 調整條件
-打開 `update_tenders.py` 最上面的設定區：預算上限、掃描天數、地區關鍵字。
+修改 `update_tenders.py`（GitHub 版）和 `index.html`（瀏覽器版）最上方的設定區。

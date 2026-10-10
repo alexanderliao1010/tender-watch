@@ -15,8 +15,8 @@ import requests
 
 # ===== 可調整的設定 =====
 BUDGET_MAX = 28_000_000          # 預算上限（不含）
-LOOKBACK_DAYS = 45               # 往回掃描幾天的公告（等標期最長約 40 天）
-REFETCH_RECENT_DAYS = 5          # 最近幾天的公告每次重抓（鏡像站可能延遲入庫）
+LOOKBACK_DAYS = 20               # 往回掃描幾天的公告
+REFETCH_RECENT_DAYS = 3          # 最近幾天的公告每次重抓（鏡像站可能延遲入庫）
 REGION_KEYWORDS = {
     "新竹": ["新竹", "竹北", "竹東", "新埔", "關西", "湖口", "新豐", "芎林", "橫山",
              "北埔", "寶山", "峨眉", "尖石", "五峰", "香山"],
@@ -34,7 +34,7 @@ CACHE_FILE = os.path.join(BASE, "data", "cache.json")
 OUT_FILE = os.path.join(BASE, "docs", "index.html")
 TEMPLATE_FILE = os.path.join(BASE, "template.html")
 
-CACHE_VERSION = 2
+CACHE_VERSION = 4
 TENDER_TYPE = re.compile(r"招標|公開取得")
 SKIP_TYPE = re.compile(r"決標|閱覽|定期彙送")
 CLOSED_TYPE = re.compile(r"決標|撤銷|停止|廢標")
@@ -91,9 +91,11 @@ def region_from_address(addr):
 
 
 def region_from_name(name):
-    for region, kws in REGION_KEYWORDS.items():
-        if any(k in (name or "") for k in kws):
-            return region
+    """機關沒有地址時，名稱必須明確寫「新竹縣、新竹市、桃園市」才算"""
+    if re.search(r"新竹[縣市]", name or ""):
+        return "新竹"
+    if re.search(r"桃園[縣市]", name or ""):
+        return "桃園"
     return None
 
 
@@ -139,6 +141,23 @@ def parse_money(s):
     return int(digits) if digits else None
 
 
+def clean_text(t):
+    return re.sub(r"\s+", " ", t or "").strip()[:80]
+
+
+def bond_text(d):
+    amt = field(d, "押標金額度", "押標金金額")
+    need = field(d, "是否須繳納押標金")
+    src = amt or need
+    m = re.search(r"([\d,]{3,})\s*元", src) or re.search(r"新臺幣\s*([\d,]{3,})", src)
+    if m:
+        n = int(m[1].replace(",", ""))
+        return f"{n/10000:,.2f}".rstrip("0").rstrip(".") + " 萬元" if n >= 10000 else f"{n:,} 元"
+    if need.startswith("否"):
+        return "免繳"
+    return clean_text(src)
+
+
 def abs_url(u):
     if not u:
         return ""
@@ -178,7 +197,8 @@ def fetch_detail(j):
         return {"not_works": True}
 
     unit = field(d, "機關名稱") or j["unit_name"]
-    region = region_from_address(field(d, "機關地址")) or region_from_name(unit)
+    addr = field(d, "機關地址")
+    region = region_from_address(addr) if addr else region_from_name(unit)
     budget = parse_money(field(d, "預算金額"))
     deadline = parse_date(field(d, "截止投標"))
     opening = parse_date(field(d, "開標時間"))
@@ -197,7 +217,9 @@ def fetch_detail(j):
         "unit": unit,
         "title": field(d, "標案名稱") or j["title"],
         "job": j["job_number"],
-        "method": field(d, "招標方式"),
+        "award": field(d, "決標方式"),
+        "period": clean_text(field(d, "履約期限", "履約期限(工程)")),
+        "bond": bond_text(d),
         "budget": budget,
         "announce": iso(announce),
         "deadline": iso(deadline),

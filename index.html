@@ -46,7 +46,7 @@ button:focus-visible,input:focus-visible,a:focus-visible{outline:3px solid var(-
 .head{display:none;color:var(--muted);font-size:.82rem;padding:0 16px 6px}
 .row{background:var(--card);border:1px solid var(--line);border-left:6px solid var(--line);
   border-radius:6px;padding:14px 16px;margin-bottom:8px;
-  grid-template-columns:1fr auto;grid-template-areas:"name left" "budget budget" "period period" "dl dl" "open open"}
+  grid-template-columns:1fr auto;grid-template-areas:"name left" "budget budget" "period period" "dl dl" "open open" "info info"}
 .row.urgent{border-left-color:transparent;
   border-image:repeating-linear-gradient(-45deg,var(--hz) 0 8px,var(--ink) 8px 16px) 0 0 0 6 / 0 0 0 6px}
 .left{grid-area:left;font-weight:700;white-space:nowrap;align-self:start}
@@ -58,6 +58,9 @@ button:focus-visible,input:focus-visible,a:focus-visible{outline:3px solid var(-
 .tag{font-size:.78rem;font-weight:700;color:#fff;padding:0 7px;border-radius:4px}
 .tag.新竹{background:var(--hsinchu)} .tag.桃園{background:var(--taoyuan)}
 .budget{grid-area:budget}.period{grid-area:period}.dl{grid-area:dl}.open{grid-area:open}
+.info{grid-area:info;display:flex;flex-wrap:wrap;gap:4px 8px;margin-top:6px}
+.info span{font-size:.85rem;background:var(--paper);border:1px solid var(--line);border-radius:4px;padding:1px 8px;max-width:100%}
+.info span b{font-weight:400;color:var(--muted);margin-right:4px}
 .cell{font-size:.92rem}
 .cell b{font-weight:400;color:var(--muted);margin-right:6px}
 .dl strong{font-weight:700}
@@ -66,7 +69,8 @@ footer{margin-top:28px;color:var(--muted);font-size:.82rem}
 footer a{color:inherit}
 @media (min-width:900px){
   .head,.row{grid-template-columns:92px minmax(0,1fr) 108px 196px 150px 150px;align-items:center;
-    grid-template-areas:"left name budget period dl open"}
+    grid-template-areas:"left name budget period dl open" ". info info info info info"}
+  .info b{display:inline !important}
   .head{display:grid}
   .cell b{display:none}
   .budget{text-align:right}
@@ -112,14 +116,14 @@ const REFETCH_RECENT_DAYS = 2;    // 最近幾天每次重抓（今天、昨天�
 const AUTO_SKIP_MINUTES = 30;     // 30 分鐘內已更新過，打開時直接顯示不重抓
 const CONCURRENCY = 8;            // 同時連線數
 const REGION_KEYWORDS = {
-  "新竹": ["新竹","竹北","竹東","新埔","關西","湖口","新豐","芎林","橫山","北埔","寶山","峨眉","香山"],
-  "桃園": ["桃園","中壢","平鎮","八德","楊梅","蘆竹","大溪","龍潭","龜山","大園","觀音","新屋"],
+  "新竹": ["新竹","竹北","竹東","新埔","關西","湖口","新豐","芎林","橫山","北埔","寶山","峨眉","尖石","五峰","香山"],
+  "桃園": ["桃園","中壢","平鎮","八德","楊梅","蘆竹","大溪","龍潭","龜山","大園","觀音","新屋","復興"],
 };
 const EXTRA_UNIT_KEYWORDS = ["北區水資源分署","石門"];
 /* ======================= */
 
 const HOSTS = ["https://pcc-api.openfun.app","https://pcc.g0v.ronny.tw"];
-const STORE_KEY = "tender-watch-v2";
+const STORE_KEY = "tender-watch-v3";
 const UNIT_KWS = [...EXTRA_UNIT_KEYWORDS, ...Object.values(REGION_KEYWORDS).flat()];
 const TENDER_TYPE = /招標|公開取得/, SKIP_TYPE = /決標|閱覽|定期彙送/, CLOSED_TYPE = /決標|撤銷|停止|廢標/;
 const WD = "日一二三四五六";
@@ -218,6 +222,21 @@ function slim(r){
           unit_id: r.unit_id||"", unit_name: r.unit_name||"", job_number: r.job_number||"", url: r.url||""};
 }
 
+/* ---------- 押標金、履約期限 ---------- */
+const cleanText = t => (t||"").replace(/\s+/g, " ").trim().slice(0, 80);
+function bondText(d){
+  const amt = field(d, "押標金額度", "押標金金額");
+  const need = field(d, "是否須繳納押標金");
+  const src = amt || need;
+  const m = /([\d,]{3,})\s*元/.exec(src) || /新臺幣\s*([\d,]{3,})/.exec(src);
+  if (m){
+    const n = +m[1].replace(/,/g, "");
+    return n >= 10000 ? (n/10000).toLocaleString("zh-TW",{maximumFractionDigits:2}) + " 萬元" : n.toLocaleString("zh-TW") + " 元";
+  }
+  if (/^否/.test(need)) return "免繳";
+  return cleanText(src);
+}
+
 /* ---------- 抓明細 ---------- */
 async function fetchDetail(j){
   const data = await api(`/api/tender?unit_id=${encodeURIComponent(j.unit_id)}&job_number=${encodeURIComponent(j.job_number)}`);
@@ -235,7 +254,9 @@ async function fetchDetail(j){
   return {
     region: (() => { const a = field(d, "機關地址"); return a ? regionFromAddress(a) : regionFromName(unit); })(),
     unit, title: field(d, "標案名稱") || j.title, job: j.job_number,
-    method: field(d, "招標方式"),
+    award: field(d, "決標方式"),
+    period: cleanText(field(d, "履約期限", "履約期限(工程)")),
+    bond: bondText(d),
     budget: parseMoney(field(d, "預算金額")),
     announce, deadline: parseDate(field(d, "截止投標")), opening: parseDate(field(d, "開標時間")),
     url: absUrl(rec.url || j.url),
@@ -375,12 +396,17 @@ function render(){
     return `<article class="row${urgent ? " urgent" : ""}">
       <div class="left">${daysLeft(t.deadline)}</div>
       <div class="name">${title}
-        <div class="unit"><span class="tag ${t.region}">${t.region}</span>${esc(t.unit)}${t.method ? `<span>${esc(t.method)}</span>` : ""}</div>
+        <div class="unit"><span class="tag ${t.region}">${t.region}</span>${esc(t.unit)}</div>
       </div>
       <div class="cell budget"><b>預算</b>${wan(t.budget)}</div>
       <div class="cell period"><b>招標期間</b>${roc(t.announce)} – ${roc(t.deadline)}</div>
       <div class="cell dl"><b>截止投標</b><strong>${roc(t.deadline, true)}</strong></div>
       <div class="cell open"><b>開標</b>${roc(t.opening, true)}</div>
+      <div class="info">
+        <span><b>決標方式</b>${esc(t.award)||"—"}</span>
+        <span><b>履約期限</b>${esc(t.period)||"—"}</span>
+        <span><b>押標金</b>${esc(t.bond)||"—"}</span>
+      </div>
     </article>`;
   }).join("");
 }
